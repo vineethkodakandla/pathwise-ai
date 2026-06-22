@@ -6,6 +6,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -22,6 +23,25 @@ const LoginPage: React.FC = () => {
       setError('Invalid credentials. Please check your email and password.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // One-click demo sign-in for portfolio visitors. Uses the seeded demo
+  // accounts; the free-tier API may cold-start on the first request.
+  const quickLogin = async (demoEmail: string, demoPassword: string) => {
+    setError('');
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setLoading(true);
+    setNotice('Waking the demo server — the first sign-in can take ~30s on the free tier…');
+    try {
+      const authUser = await login(demoEmail, demoPassword);
+      navigate(authUser.redirect_to, { replace: true });
+    } catch (err: any) {
+      setError('Demo sign-in failed — the API may still be waking up. Give it ~20s and click again.');
+    } finally {
+      setLoading(false);
+      setNotice('');
     }
   };
 
@@ -241,6 +261,94 @@ const LoginPage: React.FC = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          {/* Portfolio demo access -- one-click sign-in */}
+          <div
+            style={{
+              marginTop: 24,
+              paddingTop: 20,
+              borderTop: '1px solid #334155',
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#94a3b8',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: '0 0 12px',
+                textAlign: 'center',
+              }}
+            >
+              Explore the live demo — no signup
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => quickLogin('admin@pathwise.ai', 'Admin@PathWise2026')}
+                style={{
+                  flex: 1,
+                  padding: '11px 0',
+                  backgroundColor: 'transparent',
+                  color: '#38bdf8',
+                  border: '1px solid #0ea5e9',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                  transition: 'background-color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                Admin demo
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => quickLogin('marcus@riveralogistics.com', 'Rivera@2026')}
+                style={{
+                  flex: 1,
+                  padding: '11px 0',
+                  backgroundColor: 'transparent',
+                  color: '#34d399',
+                  border: '1px solid #10b981',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                  transition: 'background-color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                Business owner demo
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: 10.5,
+                color: notice ? '#fbbf24' : '#475569',
+                margin: '12px 0 0',
+                textAlign: 'center',
+                lineHeight: 1.5,
+              }}
+            >
+              {notice || 'Demo data only · first load may take ~30s while the free-tier API wakes'}
+            </p>
+          </div>
 
           {/* Security badges */}
           <div
