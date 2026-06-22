@@ -57,8 +57,12 @@ and regenerated on first run.)
 ### ☁️ Deploy to the cloud
 
 Frontend → **Vercel** (static SPA), backend → **Render** (FastAPI + WebSockets, sim
-mode). One-click via the included `frontend/vercel.json` and `render.yaml`. Full
-walkthrough: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+mode). One-click via the included `frontend/vercel.json` and `render.yaml`:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vineethkodakandla/pathwise-ai)
+
+Then import the repo on Vercel with **Root Directory = `frontend`** and set
+`VITE_API_URL` to your Render URL. Full walkthrough: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 ---
 
