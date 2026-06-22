@@ -1,0 +1,334 @@
+# docker-compose.yml — PathWise AI Full Stack
+# Implements: Req-Qual-Rel-1 (99.9% availability), Req-Qual-Rel-2 (auto failover),
+#             Req-Func-Hw-1 (32GB RAM), Req-Func-Hw-6 (8 CPU cores)
+#
+# Usage:
+#   docker compose up -d                     # Core stack (API + Frontend + DB + Redis + Nginx)
+#   docker compose --profile sdn up -d       # + OpenDaylight + ONOS + Mininet
+#   docker compose --profile microservices up -d  # + Legacy microservices
+#   docker compose --profile full up -d      # Everything
+
+services:
+  # ═══════════════════════════════════════════════════════════
+  #  DATA LAYER
+  # ═══════════════════════════════════════════════════════════
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    restart: always
+    environment:
+      POSTGRES_DB: pathwise
+      POSTGRES_USER: pathwise
+      POSTGRES_PASSWORD: pathwise_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pathwise -d pathwise"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server /etc/redis/redis.conf
+    volumes:
+      - ./infra/redis/redis.conf:/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════
+  #  UNIFIED API SERVER (runs all PathWise AI features)
+  # ═══════════════════════════════════════════════════════════
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: always
+    cap_add:
+      - NET_ADMIN    # Required for tc HTB traffic shaping (App Priority Switch)
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    environment:
+      # Database
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://pathwise:pathwise_dev@timescaledb:5432/pathwise
+      # Auth
+      AUTH_ENABLED: "${AUTH_ENABLED:-false}"
+      JWT_SECRET: "${JWT_SECRET:-change-me-in-production}"
+      JWT_EXPIRY_MINUTES: "${JWT_EXPIRY_MINUTES:-60}"
+      # LSTM
+      MODEL_PATH: ml/checkpoints/best_model.pt
+      PREDICTION_WINDOW_S: "60"
+      HEALTH_SCORE_THRESHOLD: "${HEALTH_SCORE_THRESHOLD:-70}"
+      # Data source
+      DATA_SOURCE: "${DATA_SOURCE:-sim}"
+      # SDN controllers
+      ODL_HOST: opendaylight
+      ODL_PORT: "8181"
+      ODL_USER: admin
+      ODL_PASS: admin
+      ONOS_HOST: onos
+      ONOS_PORT: "8181"
+      ONOS_USER: onos
+      ONOS_PASS: rocks
+      SDN_CONTROLLER_TYPE: "${SDN_CONTROLLER_TYPE:-odl}"
+      SDN_FLOW_TIMEOUT_S: "30"
+      # App Priority Switch
+      ENFORCER_MODE: "${ENFORCER_MODE:-tc}"   # tc in Docker (has NET_ADMIN), simulate locally
+      WAN_INTERFACE: eth0
+      TOTAL_LINK_MBPS: "100"
+      # Sandbox / Mininet / Batfish
+      SANDBOX_MODE: "${SANDBOX_MODE:-memory}"
+      MININET_HOST: host.docker.internal
+      MININET_PORT: "6000"
+      BATFISH_HOST: batfish
+      BATFISH_PORT: "9997"
+      # Alerts
+      ALERT_EMAIL_SMTP_HOST: "${ALERT_EMAIL_SMTP_HOST:-}"
+      ALERT_SUPPRESSION_WINDOW_S: "${ALERT_SUPPRESSION_WINDOW_S:-5}"
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ═══════════════════════════════════════════════════════════
+  #  FRONTEND DASHBOARD (React 18 + Vite)
+  # ═══════════════════════════════════════════════════════════
+
+  frontend:
+    build: ./frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: "${VITE_API_URL:-http://localhost:8000}"
+      VITE_AUTH_ENABLED: "${VITE_AUTH_ENABLED:-false}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ═══════════════════════════════════════════════════════════
+  #  REVERSE PROXY (TLS 1.3 — Req-Qual-Sec-1)
+  # ═══════════════════════════════════════════════════════════
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════════════════
+  #  POLICY VALIDATION (Batfish)
+  # ═══════════════════════════════════════════════════════════
+
+  batfish:
+    image: batfish/allinone:latest
+    restart: always
+    ports:
+      - "9997:9997"
+      - "9996:9996"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9997/v2/status || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ═══════════════════════════════════════════════════════════
+  #  SDN CONTROLLERS (profile: sdn)
+  #  Start with: docker compose --profile sdn up -d
+  # ═══════════════════════════════════════════════════════════
+
+  opendaylight:
+    image: opendaylight/odl:latest
+    restart: always
+    profiles: ["sdn", "full"]
+    ports:
+      - "6633:6633"   # OpenFlow
+      - "8181:8181"   # RESTCONF
+    environment:
+      FEATURES: odl-restconf,odl-l2switch-switch,odl-openflowplugin-flow-services
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8181/restconf/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  onos:
+    image: onosproject/onos:2.7.0
+    restart: unless-stopped
+    profiles: ["sdn", "full"]
+    ports:
+      - "8182:8181"   # ONOS REST (offset to avoid ODL conflict)
+      - "6653:6653"   # OpenFlow
+      - "8101:8101"   # ONOS CLI
+    environment:
+      - ONOS_APPS=drivers,openflow,fwd
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-u", "onos:rocks",
+             "http://localhost:8181/onos/v1/devices"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ═══════════════════════════════════════════════════════════
+  #  NETWORK EMULATION (profile: sdn)
+  # ═══════════════════════════════════════════════════════════
+
+  mininet:
+    build: ./infra/mininet
+    restart: always
+    profiles: ["sdn", "full"]
+    privileged: true
+    network_mode: host
+    depends_on:
+      opendaylight:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════════════════
+  #  LEGACY MICROSERVICES (profile: microservices)
+  #  These are the SDD §2 service split. The unified api-gateway
+  #  already includes all their functionality, so these are
+  #  optional and only needed for distributed deployment testing.
+  # ═══════════════════════════════════════════════════════════
+
+  telemetry-ingestion:
+    build: ./services/telemetry-ingestion
+    restart: always
+    profiles: ["microservices", "full"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://pathwise:pathwise_dev@timescaledb:5432/pathwise
+    env_file: .env
+
+  prediction-engine:
+    build: ./services/prediction-engine
+    restart: always
+    profiles: ["microservices", "full"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      MODEL_PATH: /models/best_model.pt
+    volumes:
+      - ./ml/checkpoints:/models
+    env_file: .env
+
+  traffic-steering:
+    build: ./services/traffic-steering
+    restart: always
+    profiles: ["microservices", "full"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      ODL_URL: http://opendaylight:8181
+    env_file: .env
+
+  digital-twin:
+    build: ./services/digital-twin
+    restart: always
+    profiles: ["microservices", "full"]
+    privileged: true
+    environment:
+      BATFISH_HOST: batfish
+    env_file: .env
+
+  # ═══════════════════════════════════════════════════════════
+  #  DB BACKUP (Req-Qual-Rel-3: every 24h)
+  # ═══════════════════════════════════════════════════════════
+
+  # ═══════════════════════════════════════════════════════════
+  #  CONTINUOUS DATA SIMULATOR (per-user telemetry)
+  # ═══════════════════════════════════════════════════════════
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    command: python scripts/continuous_simulator.py
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://pathwise:pathwise_dev@timescaledb:5432/pathwise
+
+  db-backup:
+    image: postgres:16-alpine
+    restart: always
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ./infra/db/backup.sh:/backup.sh:ro
+      - db_backups:/backups
+    environment:
+      PGHOST: timescaledb
+      PGUSER: pathwise
+      PGPASSWORD: pathwise_dev
+      PGDATABASE: pathwise
+    # Run backup daily at 02:00 UTC using a lightweight shell loop
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        chmod +x /backup.sh
+        echo "[backup] Starting daily backup service..."
+        while true; do
+          CURRENT_HOUR=$$(date -u +%H)
+          if [ "$$CURRENT_HOUR" = "02" ]; then
+            echo "[backup] Running daily backup at $$(date -u)"
+            /backup.sh
+            sleep 3600
+          fi
+          sleep 1800
+        done
+
+volumes:
+  db_backups:
+  timescale_data:

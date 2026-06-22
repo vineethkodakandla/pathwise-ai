@@ -1,0 +1,16 @@
+# PathWise AI — minimal cloud/runtime dependencies (sim mode, torch-free).
+# Boots server.main:app with all routes. The LSTM engine falls back to a NumPy
+# heuristic when torch is absent, the sandbox runs fully in-memory, and the live
+# hardware collectors (pysnmp/pygnmi/grpc/pybatfish) are never imported in the
+# default DATA_SOURCE=sim mode — so none of the heavy/fragile deps are needed.
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+pydantic>=2.5.0
+numpy>=1.26.0
+SQLAlchemy>=2.0.0
+bcrypt>=4.0.0
+PyJWT>=2.8.0
+fpdf2>=2.7.0
+pyyaml>=6.0.0
+psutil>=5.9.0

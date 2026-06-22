@@ -1,0 +1,41 @@
+{
+  "duration_days": 14,
+  "duration_seconds": 1209600,
+  "links": [
+    "fiber-primary",
+    "broadband-secondary",
+    "satellite-backup",
+    "5g-mobile"
+  ],
+  "points_per_link": 1209600,
+  "total_points": 4838400,
+  "ripe_data_used": {
+    "fiber-primary": 0,
+    "broadband-secondary": 0,
+    "satellite-backup": 0,
+    "5g-mobile": 0
+  },
+  "generated_at": 1775176074.5001993,
+  "profiles": {
+    "fiber-primary": {
+      "latency_mean": 10.5,
+      "jitter_mean": 0.8,
+      "loss_mean": 0.008
+    },
+    "broadband-secondary": {
+      "latency_mean": 18.0,
+      "jitter_mean": 3.5,
+      "loss_mean": 0.05
+    },
+    "satellite-backup": {
+      "latency_mean": 48.0,
+      "jitter_mean": 8.5,
+      "loss_mean": 0.18
+    },
+    "5g-mobile": {
+      "latency_mean": 22.0,
+      "jitter_mean": 4.5,
+      "loss_mean": 0.08
+    }
+  }
+}

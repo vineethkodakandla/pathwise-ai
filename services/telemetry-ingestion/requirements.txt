@@ -1,0 +1,4 @@
+redis[hiredis]>=5.0.0
+asyncpg>=0.29.0
+pysnmp>=4.4.12
+pysnmp-mibs>=0.1.6

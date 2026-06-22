@@ -1,0 +1,31 @@
+# PathWise AI — Unified API Server
+# Runs the consolidated server/main.py (FastAPI) with all features:
+#   LSTM inference, sandbox validation, IBN, auth/RBAC, alerts, audit, QoS
+#   App Priority Switch with tc HTB enforcement (requires NET_ADMIN)
+FROM python:3.11-slim
+
+# System dependencies: gcc for builds, curl for healthcheck,
+# iproute2 for tc (traffic control), iptables for packet marking
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc curl build-essential \
+    iproute2 iptables net-tools procps && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps
+COPY requirements-local.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY server/ ./server/
+COPY ml/checkpoints/ ./ml/checkpoints/
+COPY scripts/ ./scripts/
+COPY run.py .
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+    CMD curl -sf http://localhost:8000/api/v1/status || exit 1
+
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

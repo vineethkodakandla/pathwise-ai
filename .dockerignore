@@ -1,0 +1,48 @@
+# Git
+.git
+.gitattributes
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv*
+.mypy_cache
+.pytest_cache
+.ruff_cache
+
+# Node
+node_modules
+frontend/node_modules
+frontend/build
+frontend/.cache
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Env & secrets
+.env
+*.env.local
+
+# Build artifacts
+.vite
+*.egg-info
+dist
+
+# Docs & PDFs (not needed in container)
+*.pdf
+docs/
+PATHWISE_AI_CURSOR_BUILD_SPEC.py
+PathWise_AI_Implementation_Guide.md
+PATHWISEAIGAPFIX.md
+pathwiseaireadme.md
+
+# Old venv
+.venv_old
+
+# Claude config
+.claude

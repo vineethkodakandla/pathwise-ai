@@ -1,0 +1,56 @@
+# docker-compose.dev.yml
+# Development overrides — hot-reload, debug ports, volume mounts
+
+version: "3.9"
+
+services:
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    volumes:
+      - ./services/api-gateway:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://pathwise:pathwise_dev@timescaledb:5432/pathwise
+      DEBUG: "true"
+
+  telemetry-ingestion:
+    volumes:
+      - ./services/telemetry-ingestion:/app
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://pathwise:pathwise_dev@timescaledb:5432/pathwise
+      DEBUG: "true"
+
+  prediction-engine:
+    volumes:
+      - ./services/prediction-engine:/app
+      - ./ml/checkpoints:/models
+    environment:
+      REDIS_URL: redis://redis:6379
+      MODEL_PATH: /models/best_model.pt
+      DEBUG: "true"
+
+  traffic-steering:
+    volumes:
+      - ./services/traffic-steering:/app
+    environment:
+      REDIS_URL: redis://redis:6379
+      ODL_URL: http://opendaylight:8181
+      DEBUG: "true"
+
+  digital-twin:
+    volumes:
+      - ./services/digital-twin:/app
+    environment:
+      BATFISH_HOST: batfish
+      DEBUG: "true"
+
+  frontend:
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      CHOKIDAR_USEPOLLING: "true"

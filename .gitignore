@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ML artifacts
+ml/checkpoints/*.pt
+ml/checkpoints/*.pth
+ml/data/raw/*.parquet
+ml/data/raw/*.csv
+ml/data/processed/*.parquet
+ml/data/processed/*.csv
+ml/data/synthetic/*.parquet
+ml/data/synthetic/*.csv
+!ml/data/**/.gitkeep
+!ml/checkpoints/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_metadata
+
+# Docker
+*.log
+
+# Node / Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+*.cover
+
+# Batfish snapshots
+infra/batfish/snapshots/
+
+# --- Local DBs (bcrypt hashes + PII must never be committed) ---
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+pathwise_local.db*
+
+# --- TLS certs / private keys (never commit real keys) ---
+infra/nginx/certs/*.key
+infra/nginx/certs/*.crt
+!infra/nginx/certs/.gitkeep
+
+# --- Build caches / stray virtualenvs not already covered ---
+.vite/
+.venv_old/
+.venv*/
+
+# --- Large generated datasets (~169MB; 85.8MB file trips GitHub's 50MB warning) ---
+ml/data/real_world/*.parquet
+ml/data/real_world/*.csv
+ml/data/live_wifi/*.csv
+ml/data/live_ethernet/*.csv
+!ml/data/real_world/metadata.json
+!ml/data/**/.gitkeep
+
+# --- Vercel ---
+.vercel/

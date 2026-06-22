@@ -1,0 +1,849 @@
+openapi: 3.1.0
+info:
+  title: PathWise AI -- SD-WAN Management Platform
+  description: AI-Powered SD-WAN with LSTM prediction, autonomous steering, digital
+    twin sandbox, and intent-based networking.
+  version: 2.0.0
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Login Endpoint
+      operationId: login_endpoint_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/register:
+    post:
+      summary: Register Endpoint
+      operationId: register_endpoint_api_v1_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/me:
+    get:
+      summary: Get Me
+      operationId: get_me_api_v1_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/auth/users:
+    get:
+      summary: List Users
+      operationId: list_users_api_v1_auth_users_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/auth/unlock/{user_id}:
+    post:
+      summary: Unlock User Endpoint
+      operationId: unlock_user_endpoint_api_v1_auth_unlock__user_id__post
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/status:
+    get:
+      summary: Get Status
+      operationId: get_status_api_v1_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/admin/lstm-toggle:
+    post:
+      summary: Toggle Lstm
+      operationId: toggle_lstm_api_v1_admin_lstm_toggle_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LSTMToggleRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/lstm-status:
+    get:
+      summary: Lstm Status
+      operationId: lstm_status_api_v1_admin_lstm_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/telemetry/links:
+    get:
+      summary: Get Links
+      operationId: get_links_api_v1_telemetry_links_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/telemetry/{link_id}:
+    get:
+      summary: Get Telemetry
+      operationId: get_telemetry_api_v1_telemetry__link_id__get
+      parameters:
+      - name: link_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Link Id
+      - name: window
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 60
+          title: Window
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/telemetry/{link_id}/raw:
+    get:
+      summary: Get Raw Telemetry
+      operationId: get_raw_telemetry_api_v1_telemetry__link_id__raw_get
+      parameters:
+      - name: link_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Link Id
+      - name: window
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 60
+          title: Window
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/predictions/all:
+    get:
+      summary: Get All Predictions
+      operationId: get_all_predictions_api_v1_predictions_all_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/predictions/{link_id}:
+    get:
+      summary: Get Prediction
+      operationId: get_prediction_api_v1_predictions__link_id__get
+      parameters:
+      - name: link_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Link Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/steering/history:
+    get:
+      summary: Get Steering History
+      operationId: get_steering_history_api_v1_steering_history_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/metrics/comparison:
+    get:
+      summary: Get Comparison Metrics
+      operationId: get_comparison_metrics_api_v1_metrics_comparison_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/sandbox/validate:
+    post:
+      summary: Sandbox Validate
+      operationId: sandbox_validate_api_v1_sandbox_validate_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxValidationRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/sandbox/history:
+    get:
+      summary: Sandbox History
+      operationId: sandbox_history_api_v1_sandbox_history_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/sandbox/topology:
+    get:
+      summary: Sandbox Topology
+      operationId: sandbox_topology_api_v1_sandbox_topology_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/routing/apply:
+    post:
+      summary: Apply Routing Rule
+      operationId: apply_routing_rule_api_v1_routing_apply_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyRuleRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/routing/active:
+    get:
+      summary: Get Active Rules
+      operationId: get_active_rules_api_v1_routing_active_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/routing/all:
+    get:
+      summary: Get All Rules
+      operationId: get_all_rules_api_v1_routing_all_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/routing/{rule_id}:
+    delete:
+      summary: Rollback Rule
+      operationId: rollback_rule_api_v1_routing__rule_id__delete
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Rule Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ibn/intents:
+    get:
+      summary: List Ibn Intents
+      operationId: list_ibn_intents_api_v1_ibn_intents_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Create Ibn Intent
+      operationId: create_ibn_intent_api_v1_ibn_intents_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ibn/intents/{intent_id}:
+    get:
+      summary: Get Ibn Intent
+      operationId: get_ibn_intent_api_v1_ibn_intents__intent_id__get
+      parameters:
+      - name: intent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Intent Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Delete Ibn Intent
+      operationId: delete_ibn_intent_api_v1_ibn_intents__intent_id__delete
+      parameters:
+      - name: intent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Intent Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ibn/intents/{intent_id}/pause:
+    post:
+      summary: Pause Ibn Intent
+      operationId: pause_ibn_intent_api_v1_ibn_intents__intent_id__pause_post
+      parameters:
+      - name: intent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Intent Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ibn/intents/{intent_id}/resume:
+    post:
+      summary: Resume Ibn Intent
+      operationId: resume_ibn_intent_api_v1_ibn_intents__intent_id__resume_post
+      parameters:
+      - name: intent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Intent Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ibn/parse:
+    post:
+      summary: Parse Ibn Intent
+      operationId: parse_ibn_intent_api_v1_ibn_parse_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/audit:
+    get:
+      summary: Get Audit Log
+      operationId: get_audit_log_api_v1_audit_get
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+          title: Page
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          title: Per Page
+      - name: event_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Event Type
+      - name: actor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/audit/verify:
+    get:
+      summary: Verify Audit Integrity
+      operationId: verify_audit_integrity_api_v1_audit_verify_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/alerts/history:
+    get:
+      summary: Get Alert History
+      operationId: get_alert_history_api_v1_alerts_history_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/alerts/config:
+    put:
+      summary: Update Alert Config
+      operationId: update_alert_config_api_v1_alerts_config_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertConfigRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/reports/health-scores:
+    get:
+      summary: Export Health Scores
+      operationId: export_health_scores_api_v1_reports_health_scores_get
+      parameters:
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: string
+          default: csv
+          title: Format
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/reports/steering-events:
+    get:
+      summary: Export Steering Events
+      operationId: export_steering_events_api_v1_reports_steering_events_get
+      parameters:
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: string
+          default: csv
+          title: Format
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/reports/audit-log:
+    get:
+      summary: Export Audit Log
+      operationId: export_audit_log_api_v1_reports_audit_log_get
+      parameters:
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: string
+          default: csv
+          title: Format
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AlertConfigRequest:
+      properties:
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+        suppression_window_s:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Suppression Window S
+      type: object
+      title: AlertConfigRequest
+    ApplyRuleRequest:
+      properties:
+        sandbox_report_id:
+          type: string
+          title: Sandbox Report Id
+        source_link:
+          type: string
+          title: Source Link
+        target_link:
+          type: string
+          title: Target Link
+        traffic_classes:
+          items:
+            type: string
+          type: array
+          title: Traffic Classes
+      type: object
+      required:
+      - sandbox_report_id
+      - source_link
+      - target_link
+      - traffic_classes
+      title: ApplyRuleRequest
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    IntentRequest:
+      properties:
+        text:
+          type: string
+          title: Text
+      type: object
+      required:
+      - text
+      title: IntentRequest
+    LSTMToggleRequest:
+      properties:
+        enabled:
+          type: boolean
+          title: Enabled
+      type: object
+      required:
+      - enabled
+      title: LSTMToggleRequest
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          title: Email
+        password:
+          type: string
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+    RegisterRequest:
+      properties:
+        email:
+          type: string
+          title: Email
+        password:
+          type: string
+          title: Password
+        role:
+          type: string
+          title: Role
+      type: object
+      required:
+      - email
+      - password
+      - role
+      title: RegisterRequest
+    SandboxValidationRequest:
+      properties:
+        source_link:
+          type: string
+          title: Source Link
+        target_link:
+          type: string
+          title: Target Link
+        traffic_classes:
+          items:
+            type: string
+          type: array
+          title: Traffic Classes
+      type: object
+      required:
+      - source_link
+      - target_link
+      - traffic_classes
+      title: SandboxValidationRequest
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

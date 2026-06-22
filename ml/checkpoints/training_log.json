@@ -1,0 +1,18 @@
+{
+  "best_epoch": 30,
+  "best_val_loss": 306.3824152896279,
+  "test_loss": 297.1376316773264,
+  "test_metrics": {
+    "latency_mae": 6.937507038367422,
+    "jitter_mae": 2.142353638222343,
+    "packet_loss_mae": 0.3690542797508993
+  },
+  "health_score_stats": {
+    "mean": 67.11948427847074,
+    "std": 12.976994541433395,
+    "critical_pct": 3.6517783291976844,
+    "warning_pct": 26.993382961124894,
+    "healthy_pct": 69.35483870967742
+  },
+  "training_data": "real_world_calibrated"
+}

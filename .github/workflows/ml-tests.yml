@@ -1,0 +1,44 @@
+name: ML Tests
+
+on:
+  push:
+    paths:
+      - "services/prediction-engine/**"
+      - "ml/**"
+      - "tests/unit/test_lstm*"
+      - "tests/unit/test_feature*"
+  pull_request:
+    paths:
+      - "services/prediction-engine/**"
+      - "ml/**"
+
+jobs:
+  ml-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ML dependencies
+        run: pip install -r services/prediction-engine/requirements.txt
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-asyncio
+
+      - name: Run ML unit tests
+        run: pytest tests/unit/test_lstm_network.py tests/unit/test_feature_engineering.py -v
+
+      - name: Generate synthetic data (smoke test)
+        run: |
+          mkdir -p ml/data/synthetic
+          python ml/scripts/generate_synthetic_data.py --duration-hours 1
+
+      - name: Run model training smoke test
+        run: python ml/scripts/train.py --smoke-test --epochs 2 --data-dir ml/data/synthetic
+
+      - name: Run model evaluation
+        run: python ml/scripts/evaluate.py --smoke-test --data-dir ml/data/synthetic
