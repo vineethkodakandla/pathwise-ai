@@ -4,9 +4,12 @@ import asyncio
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from mininet_topology import MininetTopologyBuilder
 from batfish_validator import BatfishValidator
+
+if TYPE_CHECKING:
+    from steering_engine import SteeringDecision  # services/traffic-steering
 
 class ValidationResult(Enum):
     PASS = "pass"

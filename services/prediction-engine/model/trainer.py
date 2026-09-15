@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from pathlib import Path
 import logging
 
-from .lstm_network import PathWiseLoss
+from .lstm_network import PathWiseLoss, PathWiseLSTM
 
 logger = logging.getLogger(__name__)
 

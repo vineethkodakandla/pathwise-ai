@@ -5,7 +5,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "digital-twin"))
 
 import pytest
-from twin_manager import DigitalTwinManager, ValidationResult, SandboxReport
+
+# The digital-twin service imports Mininet, which needs Linux root and Open
+# vSwitch; skip rather than fail where it is not installed (e.g. CI runners).
+pytest.importorskip("mininet", reason="Mininet is not installed")
+
+from twin_manager import DigitalTwinManager, ValidationResult, SandboxReport  # noqa: E402
 
 
 class TestSandboxPipeline:
