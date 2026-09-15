@@ -18,6 +18,14 @@ services:
         value: sim
       - key: SEED_DEMO_DATA
         value: "true"
+      # Public demo hardening (server/demo.py): password-free read-only demo
+      # sign-in, random per-boot seed passwords, and every write rejected
+      # except sign-in and compute-only previews.
+      - key: DEMO_MODE
+        value: "true"
+      # Never run host QoS commands on the cloud instance.
+      - key: ENFORCER_MODE
+        value: simulate
       # Generated once by Render and kept stable across restarts:
       - key: JWT_SECRET
         generateValue: true

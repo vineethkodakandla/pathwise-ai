@@ -1,8 +1,13 @@
 """
 UI Test Suite — Authentication and Role-Based Access Control
-Tests all 9 accounts (1 admin + 8 business owners).
+Tests all 9 accounts (1 admin + 8 business owners) against a running backend.
+
+Seed passwords are not hardcoded. Start the backend on a fresh database with
+SEED_DEMO_PASSWORD set and run these tests with the same variable; without it
+the login tests are skipped.
 """
 import os
+
 import pytest
 
 try:
@@ -11,41 +16,46 @@ except ImportError:
     httpx = None
 
 BASE = os.getenv("BACKEND_URL", "http://localhost:8000")
+PASSWORD = os.getenv("SEED_DEMO_PASSWORD")
 
 pytestmark = pytest.mark.skipif(httpx is None, reason="httpx not installed")
+needs_password = pytest.mark.skipif(PASSWORD is None, reason="SEED_DEMO_PASSWORD not set")
 
-ADMIN_CREDS = {"email": "admin@pathwise.ai", "password": "Admin@PathWise2026"}
-USER_CREDS = [
-    {"email": "marcus@riveralogistics.com", "password": "Rivera@2026"},
-    {"email": "priya@nairmedical.com", "password": "NairMed@2026"},
-    {"email": "deshawn@carterretail.com", "password": "Carter@2026"},
-    {"email": "sofia@moralesacademy.edu", "password": "Sofia@2026"},
-    {"email": "kenji@tanakafab.com", "password": "Tanaka@2026"},
-    {"email": "amara@oseifinance.com", "password": "Amara@2026"},
-    {"email": "elena@petrovhotel.com", "password": "Elena@2026"},
-    {"email": "tobias@bauertech.io", "password": "Bauer@2026"},
+ADMIN_EMAIL = "admin@pathwise.ai"
+USER_EMAILS = [
+    "marcus@riveralogistics.com",
+    "priya@nairmedical.com",
+    "deshawn@carterretail.com",
+    "sofia@moralesacademy.edu",
+    "kenji@tanakafab.com",
+    "amara@oseifinance.com",
+    "elena@petrovhotel.com",
+    "tobias@bauertech.io",
 ]
 
-def _login(creds):
+def _login(email, password):
     # Try v2 first, fall back to v1
+    creds = {"email": email, "password": password}
     r = httpx.post(f"{BASE}/api/v1/auth/login/v2", json=creds, timeout=5)
     if r.status_code == 404:
         r = httpx.post(f"{BASE}/api/v1/auth/login", json=creds, timeout=5)
     return r
 
+@needs_password
 def test_admin_login():
-    r = _login(ADMIN_CREDS)
+    r = _login(ADMIN_EMAIL, PASSWORD)
     if r.status_code != 200:
         pytest.skip("DB-backed accounts not seeded yet — run scripts/seed_ui_data.py")
     data = r.json()
     assert data["role"] == "SUPER_ADMIN"
     assert data["redirect_to"] == "/admin/dashboard"
 
-@pytest.mark.parametrize("creds", USER_CREDS)
-def test_user_login(creds):
-    r = _login(creds)
+@needs_password
+@pytest.mark.parametrize("email", USER_EMAILS)
+def test_user_login(email):
+    r = _login(email, PASSWORD)
     if r.status_code != 200:
-        pytest.skip(f"Account not seeded: {creds['email']}")
+        pytest.skip(f"Account not seeded: {email}")
     data = r.json()
     assert data["role"] == "BUSINESS_OWNER"
     assert data["redirect_to"] == "/user/dashboard"
@@ -59,7 +69,7 @@ def test_invalid_login():
 
 def test_wrong_password_generic_error():
     r = httpx.post(f"{BASE}/api/v1/auth/login/v2",
-                   json={"email": ADMIN_CREDS["email"], "password": "wrongpassword"}, timeout=5)
+                   json={"email": ADMIN_EMAIL, "password": "wrongpassword"}, timeout=5)
     if r.status_code == 404:
         pytest.skip("v2 login not available")
     assert r.status_code == 401

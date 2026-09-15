@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, DEMO_DISABLED, type DemoPersona } from '../../context/AuthContext';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,7 +8,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, demoLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,19 +26,22 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // One-click demo sign-in for portfolio visitors. Uses the seeded demo
-  // accounts; the free-tier API may cold-start on the first request.
-  const quickLogin = async (demoEmail: string, demoPassword: string) => {
+  // One-click demo sign-in for portfolio visitors. No password is involved:
+  // the backend issues a short-lived token for a read-only demo persona.
+  // The free-tier API may cold-start on the first request.
+  const quickLogin = async (persona: DemoPersona) => {
     setError('');
-    setEmail(demoEmail);
-    setPassword(demoPassword);
     setLoading(true);
     setNotice('Waking the demo server — the first sign-in can take ~30s on the free tier…');
     try {
-      const authUser = await login(demoEmail, demoPassword);
+      const authUser = await demoLogin(persona);
       navigate(authUser.redirect_to, { replace: true });
     } catch (err: any) {
-      setError('Demo sign-in failed — the API may still be waking up. Give it ~20s and click again.');
+      setError(
+        err?.message === DEMO_DISABLED
+          ? 'Demo sign-in is not enabled on this server.'
+          : 'Demo sign-in failed — the API may still be waking up. Give it ~20s and click again.',
+      );
     } finally {
       setLoading(false);
       setNotice('');
@@ -287,7 +290,7 @@ const LoginPage: React.FC = () => {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => quickLogin('admin@pathwise.ai', 'Admin@PathWise2026')}
+                onClick={() => quickLogin('admin')}
                 style={{
                   flex: 1,
                   padding: '11px 0',
@@ -313,7 +316,7 @@ const LoginPage: React.FC = () => {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => quickLogin('marcus@riveralogistics.com', 'Rivera@2026')}
+                onClick={() => quickLogin('owner')}
                 style={{
                   flex: 1,
                   padding: '11px 0',
@@ -346,7 +349,7 @@ const LoginPage: React.FC = () => {
                 lineHeight: 1.5,
               }}
             >
-              {notice || 'Demo data only · first load may take ~30s while the free-tier API wakes'}
+              {notice || 'Read-only demo data · first load may take ~30s while the free-tier API wakes'}
             </p>
           </div>
 

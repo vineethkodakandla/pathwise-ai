@@ -2,7 +2,6 @@ import axios from "axios";
 
 const API_BASE =
   (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_API_URL) ||
-  (typeof process !== "undefined" && (process as any).env?.REACT_APP_API_URL) ||
   "http://localhost:8000";
 
 const client = axios.create({
