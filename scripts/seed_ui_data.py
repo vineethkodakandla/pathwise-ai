@@ -2,6 +2,12 @@
 PathWise AI — UI Seed Data Script
 Inserts 1 admin + 8 SME business owner user accounts with realistic demo data.
 Run: python scripts/seed_ui_data.py
+
+Passwords are never hardcoded (see server/demo.py seed_password):
+  * DEMO_MODE=true (public demo): random per boot, never printed, and existing
+    demo accounts are rotated and unlocked on every boot.
+  * Local: SEED_DEMO_PASSWORD sets one known password for every new account;
+    otherwise each new account gets a random password printed below.
 """
 
 import os, sys, bcrypt, json, random
@@ -11,6 +17,7 @@ from sqlalchemy import create_engine, text
 # Use the project's DB module for automatic PG/SQLite fallback
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server.db import get_engine
+from server.demo import DEMO_MODE, seed_password
 engine = get_engine()
 
 # ─── Account definitions ─────────────────────────────────────────────────────
@@ -19,7 +26,6 @@ ADMIN_ACCOUNT = {
     "id": "admin-001",
     "name": "Vineeth Reddy (Super Admin)",
     "email": "admin@pathwise.ai",
-    "password": "Admin@PathWise2026",
     "role": "SUPER_ADMIN",
     "company": "PathWise AI",
     "avatar_initials": "VA",
@@ -31,7 +37,6 @@ USER_ACCOUNTS = [
         "id": "user-001",
         "name": "Marcus Rivera",
         "email": "marcus@riveralogistics.com",
-        "password": "Rivera@2026",
         "role": "BUSINESS_OWNER",
         "company": "Rivera Logistics LLC",
         "industry": "Logistics",
@@ -44,7 +49,6 @@ USER_ACCOUNTS = [
         "id": "user-002",
         "name": "Priya Nair",
         "email": "priya@nairmedical.com",
-        "password": "NairMed@2026",
         "role": "BUSINESS_OWNER",
         "company": "Nair Medical Group",
         "industry": "Healthcare",
@@ -57,7 +61,6 @@ USER_ACCOUNTS = [
         "id": "user-003",
         "name": "DeShawn Carter",
         "email": "deshawn@carterretail.com",
-        "password": "Carter@2026",
         "role": "BUSINESS_OWNER",
         "company": "Carter Retail Group",
         "industry": "Retail",
@@ -70,7 +73,6 @@ USER_ACCOUNTS = [
         "id": "user-004",
         "name": "Sofia Morales",
         "email": "sofia@moralesacademy.edu",
-        "password": "Sofia@2026",
         "role": "BUSINESS_OWNER",
         "company": "Morales Academy",
         "industry": "Education",
@@ -83,7 +85,6 @@ USER_ACCOUNTS = [
         "id": "user-005",
         "name": "Kenji Tanaka",
         "email": "kenji@tanakafab.com",
-        "password": "Tanaka@2026",
         "role": "BUSINESS_OWNER",
         "company": "Tanaka Fabrications",
         "industry": "Manufacturing",
@@ -96,7 +97,6 @@ USER_ACCOUNTS = [
         "id": "user-006",
         "name": "Amara Osei",
         "email": "amara@oseifinance.com",
-        "password": "Amara@2026",
         "role": "BUSINESS_OWNER",
         "company": "Osei Financial Services",
         "industry": "Finance",
@@ -109,7 +109,6 @@ USER_ACCOUNTS = [
         "id": "user-007",
         "name": "Elena Petrov",
         "email": "elena@petrovhotel.com",
-        "password": "Elena@2026",
         "role": "BUSINESS_OWNER",
         "company": "Petrov Hospitality Group",
         "industry": "Hospitality",
@@ -122,7 +121,6 @@ USER_ACCOUNTS = [
         "id": "user-008",
         "name": "Tobias Bauer",
         "email": "tobias@bauertech.io",
-        "password": "Bauer@2026",
         "role": "BUSINESS_OWNER",
         "company": "Bauer Tech Solutions",
         "industry": "Technology",
@@ -228,14 +226,27 @@ def seed():
 
         # Insert accounts (INSERT OR IGNORE for SQLite compat)
         all_accounts = [ADMIN_ACCOUNT] + USER_ACCOUNTS
+        new_credentials = []
         for acc in all_accounts:
-            conn.execute(text("""
+            password, _generated = seed_password()
+            password_hash = hash_password(password)
+            inserted = conn.execute(text("""
             INSERT OR IGNORE INTO app_users (id, name, email, password_hash, role, company, industry, avatar_initials)
             VALUES (:id, :name, :email, :ph, :role, :company, :industry, :ai)
             """), {"id": acc["id"], "name": acc["name"], "email": acc["email"],
-                   "ph": hash_password(acc["password"]), "role": acc["role"],
+                   "ph": password_hash, "role": acc["role"],
                    "company": acc.get("company"), "industry": acc.get("industry"),
                    "ai": acc.get("avatar_initials", acc["name"][:2].upper())})
+            if DEMO_MODE:
+                # Rotate the password and undo any lockout or suspension that a
+                # persistent database carried over from a previous boot.
+                conn.execute(text("""
+                UPDATE app_users SET password_hash = :ph, is_active = 1,
+                    failed_attempts = 0, locked_until = NULL
+                WHERE id = :id
+                """), {"ph": password_hash, "id": acc["id"]})
+            elif inserted.rowcount:
+                new_credentials.append((acc["email"], password))
 
         # Insert subscriptions and sites for each user
         import uuid
@@ -302,10 +313,15 @@ def seed():
 
         conn.commit()
         print("Seed data inserted successfully.")
-        print("\nLogin credentials:")
-        print(f"  Admin:   admin@pathwise.ai         / Admin@PathWise2026")
-        for u in USER_ACCOUNTS:
-            print(f"  User:    {u['email']:<35} / {u['password']}")
+        if DEMO_MODE:
+            print("DEMO_MODE: demo passwords rotated and not shown; sign in with POST /api/v1/auth/demo.")
+        elif new_credentials:
+            print("\nLogin credentials for newly created accounts:")
+            for email, password in new_credentials:
+                print(f"  {email:<35} / {password}")
+        else:
+            print("Accounts already existed; their passwords are unchanged "
+                  "(delete pathwise_local.db to re-seed).")
 
 if __name__ == "__main__":
     seed()

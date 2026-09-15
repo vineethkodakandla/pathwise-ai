@@ -22,7 +22,9 @@ from server.lstm_engine import prediction_loop
 from server.auth import (
     login as auth_login, register_user, get_current_user, get_current_user_strict,
     get_ws_user, get_all_users, unlock_user, User, AUTH_ENABLED, PRIVILEGED_ROLES,
+    create_access_token,
 )
+from server.demo import DEMO_MODE, DEMO_PERSONAS, DEMO_TOKEN_MINUTES, install_read_only_guard
 from fastapi import HTTPException
 from server.rbac import require_role, require_permission
 from server import audit
@@ -62,7 +64,8 @@ async def lifespan(app: FastAPI):
     audit.log_event("SYSTEM", actor="SYSTEM", details="Server started")
     # Idempotently seed demo accounts + multi-tenant data so login (v2) and the
     # billing/tickets/sites dashboards work out of the box on a fresh DB (local
-    # SQLite or a fresh cloud instance). INSERT OR IGNORE makes re-runs a no-op.
+    # SQLite or a fresh cloud instance). INSERT OR IGNORE makes re-runs a no-op,
+    # except in DEMO_MODE, where each boot also rotates the demo passwords.
     if os.environ.get("SEED_DEMO_DATA", "true").lower() != "false":
         try:
             from scripts.seed_ui_data import seed as _seed_demo
@@ -88,6 +91,10 @@ app = FastAPI(
     description="AI-Powered SD-WAN with LSTM prediction, autonomous steering, digital twin sandbox, and intent-based networking.",
     lifespan=lifespan,
 )
+
+# Public demo: reject state-changing requests (a no-op unless DEMO_MODE=true).
+# Installed before CORSMiddleware so the 403 still carries CORS headers.
+install_read_only_guard(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -199,6 +206,41 @@ async def login_v2(req: LoginRequest):
     finally:
         try: next(db_gen, None)
         except: pass
+
+
+class DemoLoginRequest(BaseModel):
+    persona: str = "admin"
+
+
+@app.post("/api/v1/auth/demo")
+async def demo_login(req: DemoLoginRequest):
+    """Password-free sign-in to a seeded demo persona. Exists only in DEMO_MODE,
+    where the read-only guard rejects every change the session could make."""
+    if not DEMO_MODE:
+        raise HTTPException(status_code=404, detail="Not Found")
+    user_id = DEMO_PERSONAS.get(req.persona)
+    if user_id is None:
+        raise HTTPException(status_code=400, detail=f"Unknown persona. Valid: {sorted(DEMO_PERSONAS)}")
+    from server.db import get_engine
+    from sqlalchemy import text as _text
+    with get_engine().connect() as conn:
+        user = conn.execute(
+            _text("SELECT id, name, email, role, company, avatar_initials FROM app_users WHERE id = :id"),
+            {"id": user_id},
+        ).fetchone()
+    if user is None:
+        raise HTTPException(status_code=503, detail="Demo data is not seeded yet. Try again shortly.")
+    token = create_access_token(
+        user.id, user.role, expiry_minutes=DEMO_TOKEN_MINUTES, extra_claims={"demo": True},
+    )
+    audit.log_event("AUTH", actor=user.email, details=f"Demo sign-in ({req.persona})")
+    return {
+        "access_token": token, "token": token, "token_type": "bearer",
+        "role": user.role, "user_id": user.id, "name": user.name,
+        "email": user.email, "company": user.company,
+        "avatar_initials": user.avatar_initials, "demo": True,
+        "redirect_to": "/admin/dashboard" if user.role == "SUPER_ADMIN" else "/user/dashboard",
+    }
 
 
 @app.post("/api/v1/auth/register")

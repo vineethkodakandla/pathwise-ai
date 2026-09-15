@@ -17,6 +17,7 @@ import {
   FileBarChart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import DemoBanner from './DemoBanner';
 
 const NAV_ITEMS = [
   { to: '/user/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -261,6 +262,7 @@ const UserLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             padding: 24,
           }}
         >
+          {user?.demo && <DemoBanner />}
           {children}
         </main>
       </div>

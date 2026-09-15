@@ -82,7 +82,9 @@ python run.py                          # backend :8000  (DATA_SOURCE=sim)
 cd frontend && npm install && npm run dev   # frontend :3000
 ```
 The Vite dev server proxies `/api` and `/ws` to `:8000`, so `VITE_API_URL` is left
-unset locally. Log in with the demo credentials in the README.
+unset locally. Seeded account passwords are printed in the backend log on first
+start (or set `SEED_DEMO_PASSWORD` beforehand); see the README. Start the backend
+with `DEMO_MODE=true` to use the read-only one-click demo buttons instead.
 
 ---
 

@@ -20,6 +20,8 @@ import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, Request, WebSocket
 
+from server.demo import DEMO_MODE
+
 # Never ship a hardcoded secret in source. If JWT_SECRET is unset (e.g. local
 # sim/demo), generate an ephemeral random one so the app still boots — tokens
 # simply won't survive a restart. Set JWT_SECRET in the environment (Render,
@@ -62,7 +64,11 @@ _users: dict[str, User] = {}
 
 
 def _seed_default_users():
-    """Create default admin and demo users on startup."""
+    """Create the local-dev accounts used by the SRS smoke harness.
+
+    Their well-known passwords are replaced with random ones in DEMO_MODE, so
+    the public demo never accepts them (see server/demo.py).
+    """
     defaults = [
         ("admin@pathwise.local", "admin", "NETWORK_ADMIN"),
         ("manager@pathwise.local", "manager", "IT_MANAGER"),
@@ -71,6 +77,8 @@ def _seed_default_users():
         ("user@pathwise.local", "user", "END_USER"),
     ]
     for email, password, role in defaults:
+        if DEMO_MODE:
+            password = _secrets.token_urlsafe(18)
         if not any(u.email == email for u in _users.values()):
             uid = str(uuid.uuid4())[:8]
             _users[uid] = User(
@@ -96,11 +104,18 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 # ── JWT Token Management ──────────────────────────────────────
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(
+    user_id: str,
+    role: str,
+    expiry_minutes: Optional[int] = None,
+    extra_claims: Optional[dict] = None,
+) -> str:
+    minutes = JWT_EXPIRY_MINUTES if expiry_minutes is None else expiry_minutes
     payload = {
+        **(extra_claims or {}),
         "sub": user_id,
         "role": role,
-        "exp": time.time() + JWT_EXPIRY_MINUTES * 60,
+        "exp": time.time() + minutes * 60,
         "iat": time.time(),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
