@@ -24,7 +24,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install ML dependencies
-        run: pip install -r services/prediction-engine/requirements.txt
+        # pyarrow: generate_synthetic_data.py writes Parquet files
+        run: |
+          pip install -r services/prediction-engine/requirements.txt
+          pip install pyarrow
 
       - name: Install test dependencies
         run: pip install pytest pytest-asyncio
