@@ -40,6 +40,7 @@ Use the **Admin demo** or **Business owner demo** button on the sign-in page. No
 - **Role names disagree across files.** `server/rbac.py` defines five roles, `server/auth.py` accepts seven (adding `SUPER_ADMIN` and `BUSINESS_OWNER`), and the multi-tenant routers check `SUPER_ADMIN` and `BUSINESS_OWNER` directly.
 - **The audit log resets and can report false breaks.** It is lost on restart and keeps the most recent 10,000 entries. Once older entries are dropped, the integrity check reports a break that did not happen.
 - **Two backends are in the repo.** `services/` is an earlier microservice design (API gateway, prediction engine, traffic steering, digital twin, telemetry ingestion). The unit tests and the Docker Compose file still use it, but the deployed app is the consolidated FastAPI server in `server/`.
+- **Some dashboard figures are placeholders.** For example, the 99.97% platform uptime on the admin overview is a fixed value in `frontend/src/pages/admin/AdminDashboard.tsx`, and the seeded billing, ticket and model-accuracy data is invented.
 - **Older documents state targets as results.** The design documents, `build_pptx.py` and the slide deck repeat some of the goals above as if they were achieved. Treat them as the project plan.
 
 ## Run locally
