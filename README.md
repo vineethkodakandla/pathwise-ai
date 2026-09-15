@@ -1,310 +1,113 @@
 # PathWise AI
 
-**AI-Powered SD-WAN Management Platform**
-Team Pathfinders | COSC6370-001 Advanced Software Engineering | Spring 2026
+A prototype SD-WAN management dashboard built by a four-person team (Team Pathfinders) as the course project for COSC 6370-001 Advanced Software Engineering, Spring 2026.
 
-![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178c6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.1x-009688?logo=fastapi&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/License-Academic-lightgrey)
+> **Status: course prototype.** The hosted demo runs on simulated telemetry. Several subsystems in this repository (LSTM training, SDN controller clients, Mininet/Batfish validation, NETCONF delivery, hardware collectors) were designed and partly implemented, but the demo does not exercise them and no test verifies them end to end. The table below says which parts are which.
 
-> A full-stack, real-time SD-WAN management dashboard: an LSTM forecasts WAN link
-> degradation seconds ahead, traffic is autonomously re-steered, every change is
-> validated in an in-memory digital-twin sandbox, and natural-language intents
-> compile to network policy — all behind a JWT/RBAC multi-tenant portal.
+## Live demo
 
-### 🔗 Live Demo
-
-| | URL |
+| | |
 |---|---|
-| **Dashboard (Vercel)** | _add your Vercel URL after deploy_ |
-| **API + docs (Render)** | _add your Render URL after deploy_ → `…/docs` |
+| Dashboard (Vercel) | https://pathwise-ai-swart.vercel.app |
+| API docs (Render) | https://pathwise-ai-api.onrender.com/docs |
 
-The frontend is resilient: if the backend is asleep (free-tier cold start) the UI
-still loads and reconnects automatically.
+Use the **Admin demo** or **Business owner demo** button on the sign-in page. No passwords are needed or published.
 
-### ▶️ Run locally in 3 minutes (no Docker, no GPU, no heavy deps)
+- **Demo sessions are read-only.** The backend runs with `DEMO_MODE=true` ([server/demo.py](server/demo.py)) and rejects every change (user management, billing, tickets, policies, routing rules) except sandbox validation and intent previews.
+- **Tokens and passwords.** Demo tokens expire after 30 minutes. Every seeded account gets a new random password on each boot.
+- **Cold starts.** The backend is on Render's free tier, so the first request after it sleeps can take 30 to 50 seconds.
+
+## What runs in the demo, and what does not
+
+| Area | In the hosted demo | In the repository but not exercised |
+|---|---|---|
+| Telemetry | A synthetic simulator generates 1 Hz samples for four links (fiber, broadband, satellite, 5G) with noise, a daily cycle and random brownouts (`server/simulator.py`). | SNMP and gNMI collectors for a live mode (`server/collectors/`). A NetFlow parser in the earlier `services/` design. |
+| Forecasting | A trend-plus-noise heuristic over the last 20 samples produces a 30-step (30 s) forecast and a link health score (`server/lstm_engine.py`). The API health endpoint reports `lstm_enabled: false`. | An LSTM with temporal attention (60 s input window, 30 s output horizon) and its training scripts (`services/prediction-engine/`, `ml/scripts/`). No trained weights or training data are published, so the accuracy figures shown in the dashboard and `ml/checkpoints/training_log.json` cannot be reproduced from this repository. |
+| "LSTM on vs off" panel | Illustrative only. The simulator sets the "on" latency and jitter averages to 80% of the "off" averages. | None. |
+| Traffic steering | The simulator generates steering events and the dashboard shows them. Manual routing rules are blocked in the read-only demo. Locally they are stored in memory. | OpenDaylight and ONOS REST clients (`server/sdn_adapter.py`) and a make-before-break handoff routine (`server/routing.py`) that only the test suite calls. No controller is contacted and packet loss is never measured. |
+| Digital-twin sandbox | An in-memory simulation of the validation steps (`server/sandbox.py`). The loop and reachability checks are randomized, and "under 5 s" is a threshold the code checks, not a measured result. | Mininet and Batfish integration paths. Neither is verified, and a Batfish error counts as a pass. |
+| Intent-based management | A rule-based (regular expression) parser turns common English commands into structured policies and renders an illustrative YANG-style XML payload. | NETCONF delivery through `ncclient`, off by default. The generated XML uses non-standard elements and has not been validated against a device. |
+| Dashboard | React 18, TypeScript and Vite, with Recharts charts and 1 Hz WebSocket updates. | None. |
+| App-Priority QoS | You can view apps and priorities, but changes are blocked in the demo. Locally, the default simulate mode only logs rules. | Windows `New-NetQosPolicy` and Linux `tc` enforcement for the machine the server runs on. |
+| Auth and audit | JWT sign-in with bcrypt-hashed passwords. A SHA-256 hash-chained audit log with an integrity check (`GET /api/v1/audit/verify`), kept in memory. | Role-based access checks, which are only partly consistent. See the limitations below. |
+| Storage | In-memory state, plus SQLite for accounts, billing, sites and tickets. | TimescaleDB and Redis configuration for the Docker Compose stack. |
+
+## Known limitations
+
+- **Unmet design goals.** Hitless handoff with zero packet loss, forecasts 30 to 60 seconds ahead, and a Mininet/Batfish check in under 5 seconds were targets from the project requirements. None of them is demonstrated or measured here. The model's horizon is 30 seconds.
+- **No vendor comparison.** There is no benchmark or comparison against commercial SD-WAN products.
+- **Most core routes skip authentication by default.** `AUTH_ENABLED` defaults to `false`. In that mode the core routes in `server/main.py` treat every caller as a network admin, and only the multi-tenant routers under `server/routers/` require a token. The public demo is protected by the read-only guard in `server/demo.py`, not by these role checks. Do not expose a non-demo instance to the internet.
+- **Role names disagree across files.** `server/rbac.py` defines five roles, `server/auth.py` accepts seven (adding `SUPER_ADMIN` and `BUSINESS_OWNER`), and the multi-tenant routers check `SUPER_ADMIN` and `BUSINESS_OWNER` directly.
+- **The audit log resets and can report false breaks.** It is lost on restart and keeps the most recent 10,000 entries. Once older entries are dropped, the integrity check reports a break that did not happen.
+- **Two backends are in the repo.** `services/` is an earlier microservice design (API gateway, prediction engine, traffic steering, digital twin, telemetry ingestion). The unit tests and the Docker Compose file still use it, but the deployed app is the consolidated FastAPI server in `server/`.
+- **Older documents state targets as results.** The design documents, `build_pptx.py` and the slide deck repeat some of the goals above as if they were achieved. Treat them as the project plan.
+
+## Run locally
 
 ```bash
-# 1) Backend — torch-free "sim" mode, ~11 light deps
+# Backend: torch-free sim mode
 python -m venv .venv && .venv\Scripts\activate        # Windows
 pip install -r requirements-cloud.txt
-python run.py                                          # → http://localhost:8000/docs
+python run.py                                          # http://localhost:8000/docs
 
-# 2) Frontend (new terminal)
+# Frontend (new terminal)
 cd frontend
 npm install
-npm run dev                                            # → http://localhost:3000
+npm run dev                                            # http://localhost:3000
 ```
 
-The backend runs the synthetic simulator by default (`DATA_SOURCE=sim`), auto-seeds
-a demo database (SQLite), and the LSTM falls back to a NumPy heuristic when PyTorch
-isn't installed — so the whole platform runs on a laptop with the minimal deps above.
-The Vite dev server proxies `/api` and `/ws` to the backend automatically.
+**Seeded accounts**
 
-### 🔑 Demo credentials
+- The backend seeds a SQLite database on first start: one super admin (`admin@pathwise.ai`) and eight business-owner accounts.
+- Set `SEED_DEMO_PASSWORD` before the first start to choose their password. Otherwise each account gets a random password, printed in the server log.
+- Delete `pathwise_local.db` to re-seed.
+- `server/auth.py` also creates five local-only accounts used by `tests/smoke_all_features.py`.
+- To try the public read-only mode locally, start the backend with `DEMO_MODE=true`.
 
-| Role | Email | Password |
-|---|---|---|
-| Super Admin | `admin@pathwise.ai` | `Admin@PathWise2026` |
-| Business Owner | `marcus@riveralogistics.com` | `Rivera@2026` |
+The Vite dev server proxies `/api` and `/ws` to the backend.
 
-(Full persona list is seeded by `scripts/seed_ui_data.py`. The demo DB is gitignored
-and regenerated on first run.)
+## Tests and CI
 
-### ☁️ Deploy to the cloud
-
-Frontend → **Vercel** (static SPA), backend → **Render** (FastAPI + WebSockets, sim
-mode). One-click via the included `frontend/vercel.json` and `render.yaml`:
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vineethkodakandla/pathwise-ai)
-
-Then import the repo on Vercel with **Root Directory = `frontend`** and set
-`VITE_API_URL` to your Render URL. Full walkthrough: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
-
----
-
-## 1. Overview
-
-PathWise AI is an intelligent, vendor-agnostic SD-WAN management platform that
-turns enterprise network management from reactive to predictive. An LSTM neural
-network forecasts WAN link degradation 30–60 seconds ahead; the platform
-autonomously reroutes mission-critical traffic (VoIP, video, financial) through
-an SDN controller, achieving **hitless handoff with zero packet loss**. Every
-proposed routing change is first validated in a Mininet/Batfish **digital-twin
-sandbox** (< 5 s) before it is allowed to touch production.
-
-A complementary **App-Priority Switch** module lets end users assign
-`HIGH / NORMAL / LOW` priority to detected applications (Zoom, Teams, YouTube,
-Netflix, …). The bandwidth enforcer then applies real QoS rules on the host
-(`tc` on Linux, `New-NetQosPolicy` on Windows).
-
-### Core Features
-
-| # | Feature | Description |
-|---|---|---|
-| 1 | Predictive Telemetry Engine | LSTM + attention forecasts latency/jitter/loss at t+30s, t+60s |
-| 2 | Autonomous Traffic Steering | Pre-emptive, hitless flow-table update via OpenDaylight / ONOS |
-| 3 | Digital Twin Sandbox | Mininet topology + Batfish policy check in < 5 s |
-| 4 | Intent-Based Management | Natural-language policies → YANG/NETCONF payloads |
-| 5 | Multi-Link Health Scoreboard | Real-time D3.js dashboard over WebSocket |
-| 6 | App-Priority Switch | Per-app QoS enforcement (Windows PowerShell / Linux `tc`) |
-| 7 | RBAC + Audit | JWT auth, 5-role RBAC, tamper-evident audit log |
-
----
-
-## 2. Repository Layout
-
-```
-PATHWISEAI/
-├── run.py                     # offline launcher (uvicorn)
-├── start_enforcer.bat         # Windows admin launcher for real QoS
-├── setup_pathwise.py          # one-shot dependency installer/checker
-├── requirements.txt           # all Python dependencies
-├── docker-compose.yml         # full-stack container deployment
-├── server/                    # FastAPI backend
-│   ├── main.py                # app entry point
-│   ├── routers/               # REST/WS routers (telemetry, steering, apps, ibn…)
-│   ├── app_qos/               # App-Priority Switch (enforcer, signatures)
-│   ├── lstm_engine.py         # trained LSTM inference
-│   ├── auth.py, rbac.py       # JWT + role checks
-│   ├── audit.py, reports.py   # audit log + PDF/CSV reports
-│   └── sandbox.py             # digital-twin validator
-├── frontend/                  # React 18 + TypeScript + Vite dashboard
-│   └── src/pages, components  # scoreboard, IBN, policies, audit, reports
-├── ml/                        # LSTM training pipeline
-│   ├── scripts/train_lstm.py
-│   └── checkpoints/
-├── infra/                     # TimescaleDB init, Redis, nginx configs
-├── tests/                     # pytest unit + integration suites
-└── docs/                      # API spec + design documents
+```bash
+pytest tests/unit                  # no external services needed
+pytest tests/integration           # steering and telemetry tests need Redis; the digital-twin test skips without Mininet
 ```
 
----
+- `tests/smoke_all_features.py` walks the software requirements against a running server. In simulate mode it reports the hardware-bound requirements as SKIP: ODL/ONOS, hitless handoff, TCP session preservation, Mininet, Batfish, 100-site scale and SNMP/NetFlow.
+- `.github/workflows/ci.yml` checks Python code for syntax errors and undefined names, runs the unit and integration tests, and type-checks and builds the frontend.
+- Earlier CI runs never passed: the first failed to start and the next two stopped at lint. Check the Actions tab for the current status.
 
-## 3. Tech Stack
+## Deploy
 
-| Layer | Technology |
+- **Backend:** Render, via the Blueprint in `render.yaml`. It sets `DEMO_MODE=true` and `ENFORCER_MODE=simulate`.
+- **Frontend:** Vercel, with Root Directory `frontend` and `VITE_API_URL` set to the Render URL.
+
+Full walkthrough: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Repository layout
+
+```
+server/      FastAPI app the demo runs: auth, audit log, simulator, forecaster, sandbox, IBN parser, QoS logic, multi-tenant routers
+frontend/    React 18 + TypeScript + Vite dashboard
+services/    earlier microservice design (not deployed); used by the unit tests
+ml/          LSTM training and evaluation scripts and notebooks (no weights or data committed)
+infra/       TimescaleDB, Redis, nginx and Mininet configuration for Docker Compose
+scripts/     demo data seeding, simulators, deployment checks
+tests/       unit, integration, UI, load and requirement smoke tests
+docs/        implementation guide, deployment guide, OpenAPI spec
+```
+
+## Team
+
+This public repository is a squashed snapshot of the team's working repository, so its git history does not show who wrote what. The table gives each member's planned responsibilities from the project plan. [CONTRIBUTORS.md](CONTRIBUTORS.md) has per-module detail.
+
+| Member | Planned responsibilities |
 |---|---|
-| Frontend | React 18, TypeScript, Vite, TailwindCSS, Zustand, D3.js, Recharts |
-| API | FastAPI, Uvicorn (Python 3.11+) |
-| ML | PyTorch 2.x, NumPy, Pandas, scikit-learn |
-| Auth | JWT (PyJWT), bcrypt |
-| Persistence | TimescaleDB (prod) / SQLite (local) via SQLAlchemy |
-| Messaging | Redis 7 (prod) / in-proc pub/sub (local) |
-| SDN | OpenDaylight, ONOS (REST northbound) |
-| Validation | Mininet (WSL2 on Windows), Batfish (pybatfish) |
-| Telemetry | SNMP (pysnmp), gNMI (pygnmi), NetFlow |
-| QoS enforcement | Linux `tc`, Windows `New-NetQosPolicy` |
-| Container | Docker, Docker Compose |
+| Vineeth Reddy Kodakandla | Project manager. Backend API, JWT authentication, SHA-256 hash-chained audit log, application-layer QoS logic, DevOps |
+| Meghana Nalluri | Requirements lead. ML pipeline, LSTM training |
+| Bharadwaj Jakkula | Design and test lead. React dashboard, IBN, test automation |
+| Sricharitha Katta | Configuration and technical lead. Mininet/Batfish, SDN clients |
 
----
+## License
 
-## 4. Prerequisites
-
-| Requirement | Version |
-|---|---|
-| Python | 3.11 or newer |
-| Node.js | 18 LTS or newer (npm 9+) |
-| OS | Windows 10/11, macOS 12+, or Linux |
-| Docker (optional, for full stack) | 24+ |
-| WSL2 (optional, for Mininet data generation) | Ubuntu 22.04 |
-| RAM | ≥ 8 GB local, ≥ 32 GB for full production deployment |
-
----
-
-## 5. Installation
-
-### Option A — automatic (recommended)
-
-```bash
-python setup_pathwise.py              # installs everything + verifies imports
-python setup_pathwise.py --check      # dry-run: report only, no installs
-```
-
-The script:
-- verifies Python ≥ 3.11 and Node ≥ 18
-- runs `pip install -r requirements.txt`
-- runs `npm install` in `frontend/`
-- import-checks FastAPI, Uvicorn, PyTorch, JWT, bcrypt, psutil, etc.
-- warns on missing optional components (Docker, WSL, Mininet)
-
-### Option B — manual
-
-```bash
-# 1. Python backend
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-
-# 2. Frontend
-cd frontend
-npm install
-cd ..
-```
-
----
-
-## 6. Running the Platform
-
-### Local development (no Docker)
-
-Terminal 1 — backend:
-
-```bash
-python run.py
-# → http://localhost:8000/docs  (OpenAPI UI)
-```
-
-Terminal 2 — frontend:
-
-```bash
-cd frontend
-npm start
-# → http://localhost:3000       (dashboard; proxies /api and /ws to :8000)
-```
-
-### Real Windows QoS enforcement (App-Priority Switch)
-
-Right-click **`start_enforcer.bat` → Run as administrator**. This sets
-`ENFORCER_MODE=powershell` and dispatches real `New-NetQosPolicy` rules.
-Without admin rights the enforcer silently falls back to simulate mode.
-
-### Docker Compose (full stack)
-
-```bash
-docker compose up --build
-# dashboard  → http://localhost:3000
-# api        → http://localhost:8000
-# timescale  → localhost:5432
-# redis      → localhost:6379
-```
-
-### Environment variables (`.env`)
-
-Copy `.env.example` to `.env` and adjust. Key variables:
-
-```
-JWT_SECRET=change-me
-ENFORCER_MODE=simulate        # simulate | tc | powershell
-WAN_INTERFACE=Ethernet
-TOTAL_LINK_MBPS=100
-DATA_SOURCE=sim               # sim | live
-ODL_HOST=localhost
-ONOS_HOST=localhost
-```
-
----
-
-## 7. Running Tests
-
-```bash
-pytest tests/ -v                  # full suite
-pytest tests/test_app_qos -v      # App-Priority module
-pytest tests/ -k steering         # keyword filter
-```
-
----
-
-## 8. Key API Endpoints
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/api/v1/auth/login` | JWT authentication |
-| POST | `/api/v1/auth/register` | Create user (requires admin token, even when AUTH_ENABLED=false) |
-| GET  | `/api/v1/telemetry/{link_id}` | Per-link telemetry |
-| GET  | `/api/v1/predictions/all` | Current LSTM forecasts |
-| POST | `/api/v1/sandbox/validate` | Run digital-twin check |
-| POST | `/api/v1/ibn/parse` | Preview a natural-language intent (400 on unparseable) |
-| POST | `/api/v1/ibn/intents` | Submit an intent-based policy |
-| POST | `/api/v1/ibn/deploy` | Validate + deploy an intent |
-| GET  | `/api/v1/apps/active` | Detected running applications |
-| POST | `/api/v1/apps/priorities` | Apply per-app QoS rules |
-| GET  | `/api/v1/apps/enforcement-status` | QoS enforcer state |
-| WS   | `/ws/scoreboard` | Real-time health-score stream |
-| WS   | `/api/v1/apps/ws/{user_id}/quality` | Per-user quality updates |
-
-Full schema: http://localhost:8000/docs
-
----
-
-## 9. Default Roles (RBAC)
-
-| Role | Capability |
-|---|---|
-| `SUPER_ADMIN` | All admin endpoints + cross-user visibility |
-| `NETWORK_ADMIN` | Telemetry, steering, policies |
-| `IT_MANAGER` | Read-only dashboards + reports |
-| `MSP_TECHNICIAN` | Multi-tenant ops |
-| `BUSINESS_OWNER` / `END_USER` | App-Priority self-service |
-
----
-
-## 10. Troubleshooting
-
-| Symptom | Fix |
-|---|---|
-| `winerror 10013` binding port 8000 | Another process holds the port — kill it or run on `--port 8001` |
-| App-Priority shows `mode: simulate` | Set `ENFORCER_MODE=powershell` *and* run as Administrator |
-| `pybatfish` import fails | Start the Batfish container: `docker run -d -p 9997:9997 batfish/allinone` |
-| `torch` download is slow | Pre-install with `pip install torch --index-url https://download.pytorch.org/whl/cpu` |
-| Frontend cannot reach API | Ensure backend is on `:8000`; Vite proxy is configured in `frontend/vite.config.ts` |
-
----
-
-## 11. Team
-
-| Member | Role |
-|---|---|
-| Vineeth Reddy Kodakandla | Project manager — API, integration, DevOps |
-| Meghana Nalluri | Requirements lead — ML pipeline, LSTM training |
-| Bharadwaj Jakkula | Design/Test lead — React dashboard, IBN, test automation |
-| Sricharitha Katta | Config/Tech lead — Mininet/Batfish, SDN clients |
-
----
-
-## 12. License
-
-Academic project — COSC6370-001 Advanced Software Engineering, Spring 2026.
-Not for production use without authorization.
+Academic project for COSC 6370-001 Advanced Software Engineering, Spring 2026. Not for production use.
